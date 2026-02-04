@@ -1,4 +1,6 @@
 using System.Text.Json;
+record User(string Login, string Password);
+record LoginRequest(string Login, string Password);
 var builder = WebApplication.CreateBuilder(args);
 // CORS для работы с внешними клиентами
 builder.Services.AddCors(options =>
@@ -11,34 +13,33 @@ policy.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader();
 var app = builder.Build();
 app.UseCors();
 // Простое хранилище пользователей (логин -> пароль)
-var users = new Dictionary<string, string>
-{
-{ "user@company.com", "secret123" },
-{ "admin@bimfunction.com", "admin456" },
-{ "test@test.com", "test" }
-};
+var usersJson = Environment.GetEnvironmentVariable("ALLOWED_USERS");
+var users = JsonSerializer.Deserialize<List<User>>(usersJson ?? "[]") ?? new List<User>();
+
 // Эндпоинт для авторизации
 app.MapPost("/api/auth/login", (LoginRequest req) =>
 {
-// Проверяем, что логин и пароль не пустые
-if (string.IsNullOrWhiteSpace(req.Login) || string.IsNullOrWhiteSpace(req.Password))
-{
-return Results.Json(new { success = false, error = "Login and password required" }, statusCode: 400);
-}
-// Проверяем логин и пароль
-if (users.TryGetValue(req.Login, out var password) && password == req.Password)
-{
-    return Results.Json(new
+    var user = users.FirstOrDefault(u =>
+        u.Login == req.Login && u.Password == req.Password);
+
+    if (user is null)
+    {
+        return Results.Json(new
+        {
+            success = false,
+            error = "Логин или пароль неверны"
+        });
+    }
+
+    var auth = new
     {
         success = true,
-        token = Guid.NewGuid().ToString(),
-        user = req.Login,
-        expires = DateTime.UtcNow.AddMonths(1).ToString("O")
-    });
-}
+        token = Guid.NewGuid().ToString("N"),
+        user = user.Login,
+        expires = DateTime.UtcNow.AddHours(12)
+    };
 
-return Results.Json(new { success = false, error = "Invalid login or password" }, statusCode: 401);
-
+    return Results.Json(auth);
 });
 // Главная страница (для проверки работы)
 app.MapGet("/", () => Results.Text("BIMFunction Auth Server v1.0 - Running ✓"));
