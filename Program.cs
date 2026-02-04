@@ -1,8 +1,5 @@
 using System.Text.Json;
 
-record User(string Login, string Password);
-record LoginRequest(string Login, string Password);
-
 var builder = WebApplication.CreateBuilder(args);
 
 // CORS
@@ -60,3 +57,7 @@ app.MapGet("/health", () =>
     Results.Ok(new { status = "alive", timestamp = DateTime.UtcNow }));
 
 app.Run();
+
+// Объявления типов должны быть в конце файла
+record User(string Login, string Password);
+record LoginRequest(string Login, string Password);
