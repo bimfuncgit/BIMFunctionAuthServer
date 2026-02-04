@@ -43,7 +43,7 @@ app.MapPost("/api/auth/login", (LoginRequest req) =>
         success = true,
         token   = Guid.NewGuid().ToString("N"),
         user    = user.Login,
-        expires = DateTime.UtcNow.AddHours(12),
+        expires = DateTime.UtcNow.AddDays(30), // Токен живет долго
         error   = string.Empty
     };
 
