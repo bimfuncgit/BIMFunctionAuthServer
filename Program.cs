@@ -17,14 +17,21 @@ var app = builder.Build();
 
 app.UseCors();
 
+// Настройки JSON для нечувствительности к регистру
+var jsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+
 // Users from env
 var usersJson = Environment.GetEnvironmentVariable("ALLOWED_USERS");
-var users = JsonSerializer.Deserialize<List<User>>(usersJson ?? "[]") ?? new List<User>();
+// Добавляем jsonOptions здесь!
+var users = JsonSerializer.Deserialize<List<User>>(usersJson ?? "[]", jsonOptions) ?? new List<User>();
 
 app.MapPost("/api/auth/login", (LoginRequest req) =>
 {
+    // Minimal API автоматически использует нечувствительный регистр для LoginRequest,
+    // но сравнение в FirstOrDefault должно быть надежным.
     var user = users.FirstOrDefault(u =>
-        u.Login == req.Login && u.Password == req.Password);
+        string.Equals(u.Login, req.Login, StringComparison.OrdinalIgnoreCase) && 
+        u.Password == req.Password);
 
     if (user is null)
     {
@@ -43,7 +50,7 @@ app.MapPost("/api/auth/login", (LoginRequest req) =>
         success = true,
         token   = Guid.NewGuid().ToString("N"),
         user    = user.Login,
-        expires = DateTime.UtcNow.AddDays(30), // Токен живет долго
+        expires = DateTime.UtcNow.AddDays(30),
         error   = string.Empty
     };
 
@@ -58,6 +65,5 @@ app.MapGet("/health", () =>
 
 app.Run();
 
-// Объявления типов должны быть в конце файла
 record User(string Login, string Password);
 record LoginRequest(string Login, string Password);
